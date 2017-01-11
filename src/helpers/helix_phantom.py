@@ -79,8 +79,8 @@ def create_toric_helix(r_helix, r_tube, slope, n_windings,
 #         mlab.mesh(c0, c1, c2)
 
         # Also render the closed surface
-        mapper = tvtk.PolyDataMapper(input=closed_poly_data,
-                                     scalar_visibility=False)
+        mapper = tvtk.PolyDataMapper(scalar_visibility=False)
+        configure_input(mapper, closed_poly_data)
         actor  = tvtk.Actor(mapper=mapper)
 #         actor.property.representation = "wireframe"
         actor.property.color = (0., 1., 0.)
