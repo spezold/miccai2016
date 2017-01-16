@@ -35,7 +35,7 @@ void qsqueeze(const qat inQ, vec outV)
     ftype at2 = (inQ[1] * inQ[2] - inQ[0] * inQ[3]) * cond2 + (q1q3 - q2q0) * (!cond2);
     at2 = safeatan2(at2, (.5 - (square(inQ[2]) + square(inQ[3]))) * cond2 + (q1q0 + q2q3) * (!cond2));
     
-    outV[2] /* psi */   = (at2 - outV[0]) * (cond1 ? 1 : -1) * cond2 + at2 * (!cond2);
+    outV[2] /* psi */   = (-at2 + outV[0] * (cond1 ? -1 : 1)) * cond2 + at2 * (!cond2);
 }
 
 /**
@@ -65,7 +65,7 @@ void qsqueezeLast(const qat inQ, vec outV)
     ftype at2 = (q1 * q2 - q0 * q3) * cond2 + (q1q3 - q2q0) * (!cond2);
     at2 = safeatan2(at2, (.5 - (square(q2) + square(q3))) * cond2 + (q1q0 + q2q3) * (!cond2));
     
-    outV[2] /* psi */   = (at2 - outV[0]) * (cond1 ? 1 : -1) * cond2 + at2 * (!cond2);
+    outV[2] /* psi */   = (-at2 + outV[0] * (cond1 ? -1 : 1)) * cond2 + at2 * (!cond2);
 }
 
 /**
