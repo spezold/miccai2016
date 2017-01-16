@@ -2,10 +2,10 @@
 # coding: utf-8
 
 """
-Two approaches for adjusting directions of vesselness/tubularity directions,
-making sure that neighboring vectors point in more or less the same direction
-(rather than the opposite direction); which, in turn, makes it possible to
-apply gradient vector flow to the result.
+Adjust directions of vesselness/tubularity directions, making sure that
+neighboring vectors point in more or less the same direction (rather than the
+opposite direction); which, in turn, makes it possible to apply gradient vector
+flow to the result.
 """
 from __future__ import division
 
