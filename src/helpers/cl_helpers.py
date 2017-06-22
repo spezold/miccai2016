@@ -231,17 +231,36 @@ class Reducer(object):
         """
         return int(np.ceil(np.ceil(n_in / 2.) / self.WGSIZE))
     
-    def reduce(self, in_buffer, in_number, swap_buffer, dtype=np.float32):
+    def reduce(self, in_buffer, in_number, swap_buffer, dtype=np.float32,
+               preserve_in_buffer_contents=True):
         """
         Read initial input from <in_buffer>, write intermediate output to
         <swap_buffer>. The necessary size for the <swap_buffer> can be queried
         via <swap_buffer_bytes_for()>.
+        
+        If <preserve_in_buffer_contents> is True (default), make sure that on
+        return, the original input of <in_buffer> is restored. As this step
+        involves a host-device and a device-host copy of some data (albeit
+        usually a small amount), it should be ommitted if <in_buffer>'s
+        original content is not needed after reduction.
         
         Return the reduction result as a scalar.
         """
         input_size = int(in_number)
         input_buffer = in_buffer
         output_buffer = swap_buffer
+        
+        assert input_size > self._WGSIZE
+        
+        if preserve_in_buffer_contents:
+            
+            # We need to secure the first N elements of <in_buffer>. N is the
+            # number of elements that remain after the second reduction pass,
+            # i.e. when <swap_buffer> serves as input and <in_buffer> serves as
+            # output
+            num_preserved = self._calc_outputsize(self._calc_outputsize(input_size))
+            data_preserved = np.empty(num_preserved, dtype=dtype)
+            cl.enqueue_copy(self._queue, data_preserved, in_buffer)
         
         while input_size > self.WGSIZE:
             
@@ -260,6 +279,11 @@ class Reducer(object):
         # then perform the final reduction there
         gpu_result = np.empty(input_size, dtype=dtype)
         cl.enqueue_copy(self.queue, gpu_result, input_buffer)
+        
+        if preserve_in_buffer_contents:
+            
+            # Restore <in_buffer>'s first N elements
+            cl.enqueue_copy(self._queue, in_buffer, data_preserved)
         
         result = self.prg_cpu(gpu_result)
         return result
