@@ -364,7 +364,7 @@ class VesselnessUpdate(object):
         k.set_scalar_arg_dtypes([None, None, np.int32])
         prg_cpu = lambda a : np.max(a)  # For the final reduction
         
-        reducer = Reducer(k, prg_cpu, wgsize, self._loader.ctx, self._loader.queue)
+        reducer = Reducer(k, prg_cpu, wgsize, self._loader.queue)
         return reducer
         
     def _init_cl_programs(self):

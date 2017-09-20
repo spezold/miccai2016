@@ -74,7 +74,7 @@ class CmfCutQAnisotropicGpu(TreePrintable):
         prg_gpu.set_scalar_arg_dtypes([None, None, np.int32])
         prg_cpu = lambda a : np.sum(np.abs(a))  # For the final reduction
         
-        reducer = Reducer(prg_gpu, prg_cpu, wgsize, self.loader.ctx, self.loader.queue)
+        reducer = Reducer(prg_gpu, prg_cpu, wgsize, self.loader.queue)
         return reducer
     
     def _reinit_clprograms(self, scaling, const_sqevals, supervised):

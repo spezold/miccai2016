@@ -189,10 +189,11 @@ class Reducer(object):
     Reduces an array in as many passes as necessary.
     """
     
-    def __init__(self, prg_gpu, prg_cpu, wgsize, context, queue):
+    def __init__(self, prg_gpu, prg_cpu, wgsize, queue):
         """
         <prg_gpu>
-            the program used for reduction on the GPU. The following signature is assumed
+            The program used for reduction on the GPU (<pyopencl.Program>
+            instance). The following signature is assumed
             - input data (global buffer)
             - output data (global buffer)
             - input size (number of elements in the input data buffer)
@@ -203,17 +204,14 @@ class Reducer(object):
         <wgsize>
             the work group size that the program has been initialized with
             (scalar)
-        <context>
-            OpenCl context instance to be used
         <queue>
             OpenCl command queue instance to be used
         """
-        self.prg_gpu = prg_gpu
-        self.prg_cpu = prg_cpu
-        self.WGSIZE = wgsize
-        self.local_size = (wgsize, )
-        self.context = context
-        self.queue = queue
+        self._prg_gpu = prg_gpu
+        self._prg_cpu = prg_cpu
+        self._WGSIZE = wgsize
+        self._local_size = (wgsize, )
+        self._queue = queue
         
     def swap_buffer_bytes_for(self, n_in, dtype):
         """
@@ -229,22 +227,34 @@ class Reducer(object):
         Return resulting number of elements in the output buffer, given the
         number of elements in the input buffer <n_in>.
         """
-        return int(np.ceil(np.ceil(n_in / 2.) / self.WGSIZE))
+        return int(np.ceil(np.ceil(n_in / 2.) / self._WGSIZE))
     
     def reduce(self, in_buffer, in_number, swap_buffer, dtype=np.float32,
                preserve_in_buffer_contents=True):
         """
-        Read initial input from <in_buffer>, write intermediate output to
-        <swap_buffer>. The necessary size for the <swap_buffer> can be queried
-        via <swap_buffer_bytes_for()>.
+        Actually reduce an array/buffer.
         
-        If <preserve_in_buffer_contents> is True (default), make sure that on
-        return, the original input of <in_buffer> is restored. As this step
-        involves a host-device and a device-host copy of some data (albeit
-        usually a small amount), it should be ommitted if <in_buffer>'s
-        original content is not needed after reduction.
-        
-        Return the reduction result as a scalar.
+        <in_buffer>
+            The <pyopencl.Buffer> instance whose content is to be reduced.
+            Caution: Its contents may be altered (see the
+            <preserve_in_buffer_contents> option).
+        <in_number>
+            The number of elements in <in_Buffer>.
+        <swap_buffer>
+            A <pyopencl.Buffer> instance that is used for reading and writing
+            intermediate results. Its necessary size can be queried via the
+            <swap_buffer_bytes_for()> method.
+        <dtype>
+            The data type of <in_buffer>'s content.
+        <preserve_in_buffer_contents>
+            If True (default), make sure that on return, the original input of
+            <in_buffer> is restored. As this step involves a host-device and a
+            device-host copy of some data (albeit usually a small amount), it
+            should be ommitted if <in_buffer>'s original content is not needed
+            after reduction.
+            
+        Return
+            The reduction result as a scalar.
         """
         input_size = int(in_number)
         input_buffer = in_buffer
@@ -262,14 +272,14 @@ class Reducer(object):
             data_preserved = np.empty(num_preserved, dtype=dtype)
             cl.enqueue_copy(self._queue, data_preserved, in_buffer)
         
-        while input_size > self.WGSIZE:
+        while input_size > self._WGSIZE:
             
             output_size = self._calc_outputsize(input_size)
-            global_size = output_size * self.WGSIZE
+            global_size = output_size * self._WGSIZE
 
             # Reduce current input, swap buffers, update input/output_size
-            self.prg_gpu(self.queue, (global_size, ), self.local_size,
-                         input_buffer, output_buffer, input_size)
+            self._prg_gpu(self._queue, (global_size, ), self._local_size,
+                          input_buffer, output_buffer, input_size)
             
             input_buffer, output_buffer = output_buffer, input_buffer
             input_size = output_size
@@ -278,12 +288,12 @@ class Reducer(object):
         # <input_buffer>, as we swapped the buffers after the last reduction),
         # then perform the final reduction there
         gpu_result = np.empty(input_size, dtype=dtype)
-        cl.enqueue_copy(self.queue, gpu_result, input_buffer)
+        cl.enqueue_copy(self._queue, gpu_result, input_buffer)
         
         if preserve_in_buffer_contents:
             
             # Restore <in_buffer>'s first N elements
             cl.enqueue_copy(self._queue, in_buffer, data_preserved)
         
-        result = self.prg_cpu(gpu_result)
+        result = self._prg_cpu(gpu_result)
         return result
