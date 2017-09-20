@@ -260,8 +260,6 @@ class Reducer(object):
         input_buffer = in_buffer
         output_buffer = swap_buffer
         
-        assert input_size > self._WGSIZE
-        
         if preserve_in_buffer_contents:
             
             # We need to secure the first N elements of <in_buffer>. N is the
@@ -286,7 +284,8 @@ class Reducer(object):
         
         # Read back the remaining values to the CPU (we have to read from
         # <input_buffer>, as we swapped the buffers after the last reduction),
-        # then perform the final reduction there
+        # then perform the final reduction there (this also applies if original
+        # input_size <= self._WGSIZE)
         gpu_result = np.empty(input_size, dtype=dtype)
         cl.enqueue_copy(self._queue, gpu_result, input_buffer)
         
